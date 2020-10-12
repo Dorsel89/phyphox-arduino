@@ -23,6 +23,9 @@ static const char *phyphoxBleConfigCharacteristicUUID = "cddf1003-30f7-4671-8b43
 #elif defined(ARDUINO_SAMD_NANO_33_IOT)
     #include <ArduinoBLE.h>
     #include "phyphoxBLE_NanoIOT.h"
+#elif defined(AVR_UNO_WIFI_REV2)
+    #include <ArduinoBLE.h>
+    #include "phyphoxBLE_NanoIOT.h"
 #else
 #error "Unsupported board selected!"
 #endif
