@@ -8,14 +8,16 @@ bool FORMATFLASH = false;
 SCD30 airSensor;
 File fsUploadFile;                                    // a File variable to temporarily store the received file
 
-float datasetNumber = 0;
+int datasetNumber = 0;
 int dataPointNumber = 0;
 
 const int measuredDataLength = 4;
 float measuredData[measuredDataLength];  //co2,temperature,humidity,seconds since uptime, number of dataset
 
 void receivedConfig();
-bool currentlyTransfering = false;
+
+int oldDataTransmissionOffset = -1;
+int oldDataTransmissionSet = -1;
 
 void setup() {
   PhyphoxBLE::start("CO2 Monitor");                 //Start the BLE server
@@ -26,8 +28,7 @@ void setup() {
   if (airSensor.begin() == false)
   {
     Serial.println("Air sensor not detected. Please check wiring. Freezing...");
-    while (1)
-      ;
+    while (1);
   }
 
   delay(200);
@@ -44,15 +45,8 @@ void loop() {
     measuredData[1]=airSensor.getTemperature();
     measuredData[2]=airSensor.getHumidity();
     measuredData[3] = millis()/1000;
-    
-    Serial.print("CO2: ");
-    Serial.print(measuredData[0]);
-    Serial.print(" Temperature: ");
-    Serial.print(measuredData[1]);
-    Serial.print(" Humidity: ");
-    Serial.print(measuredData[2]);
-    Serial.print(" Timestamp: ");
-    Serial.println(measuredData[3]);
+
+    echoDataset("Measured", measuredData);
 
     PhyphoxBLE::write(measuredData[0],measuredData[1],measuredData[2],measuredData[3]);     //Send value to phyphox  
   
@@ -61,7 +55,30 @@ void loop() {
     File file = SPIFFS.open("/set"+String(datasetNumber)+".txt", "a");  
     file.write(byteArray, 4*measuredDataLength);
     file.close();
+    delay(10);
   }
+
+  if (oldDataTransmissionOffset >= 0) {
+    if (transferOldData(oldDataTransmissionSet, oldDataTransmissionOffset))
+      oldDataTransmissionOffset++;
+    else {
+      oldDataTransmissionOffset = -1;
+      Serial.println("Transfer of old date completed.");
+    }
+    delay(10);
+  }
+}
+
+void echoDataset(String note, float * data) {
+  Serial.print(note);
+  Serial.print(" => CO2: ");
+  Serial.print(data[0]);
+  Serial.print(", Temperature: ");
+  Serial.print(data[1]);
+  Serial.print(", Humidity: ");
+  Serial.print(data[2]);
+  Serial.print(", Timestamp: ");
+  Serial.println(data[3]);
 }
 
 void initStorage() { // Start the SPIFFS and list all contents
@@ -137,8 +154,7 @@ void receivedConfig(){
 
     uint8_t readArray[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     PhyphoxBLE::read(&readArray[0],20);
-    if(readArray[0]==1 && !currentlyTransfering){
-        currentlyTransfering=true;
+    if(readArray[0]==1){
         /*  user can choose 
         if(readArray[1]>(dataSetNumber)){
             //do nothing
@@ -147,21 +163,32 @@ void receivedConfig(){
         }
         */
         // just send current data
-        transferOldData(datasetNumber);
-        currentlyTransfering=false;
+        Serial.println("Resending of old data requested.");
+        oldDataTransmissionOffset = 0;
+        oldDataTransmissionSet = datasetNumber;
     }
 }
 
-void transferOldData(float _setNumber){
-    File file = SPIFFS.open("/set"+String(_setNumber)+".txt", "r");
+bool transferOldData(int setNumber, int offset){
+    File file = SPIFFS.open("/set"+String(setNumber)+".txt", "r");
+    file.seek(offset*4*measuredDataLength, SeekSet);
     char buffer[4*measuredDataLength];
-    while (file.available()) {
-      int l = file.readBytes(buffer, 4*measuredDataLength);
-      float bufferArray[measuredDataLength];
-      memcpy(&bufferArray[0],&buffer[0],4*measuredDataLength);
-      PhyphoxBLE::write(bufferArray[0],bufferArray[1],bufferArray[2],bufferArray[3]);     //Send value to phyphox
-      delay(10); // TODO
+    if (!file.available()) {
+      file.close();
+      return false;
     }
+      
+    int l = file.readBytes(buffer, 4*measuredDataLength);
+    file.close();
+    
+    float bufferArray[measuredDataLength];
+    memcpy(&bufferArray[0],&buffer[0],4*measuredDataLength);
+
+    echoDataset("Old", bufferArray);
+    
+    PhyphoxBLE::write(bufferArray[0],bufferArray[1],bufferArray[2],bufferArray[3]);     //Send value to phyphox
+    
+    return true;
 }
 
   
