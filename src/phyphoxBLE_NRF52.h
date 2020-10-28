@@ -77,12 +77,9 @@ class PhyphoxBLE
 	
 	//helper function to initialize BLE server and for connection poperties
 	static void bleInitComplete(BLE::InitializationCompleteCallbackContext*);
-	static void when_disconnection(const Gap::DisconnectionCallbackParams_t *);
 	static void when_subscription_received(GattAttribute::Handle_t);
 	static void configReceived(const GattWriteCallbackParams *params);
 
-	static void when_connected(const Gap::ConnectionCallbackParams_t *);
-   
 	//helper functon that runs in the thread ble_server
 	//static void waitForEvent();
 	static void transferExp();
@@ -115,7 +112,7 @@ class PhyphoxBLE
 	static inline uint16_t currentConnections =0;	
 
 	static void (*configHandler)();
-	static inline Gap::ConnectionParams_t conParameters; 
+	static inline Gap::PreferredConnectionParams_t conParameters; 
 
     static void poll();
     static void poll(int timeout);
