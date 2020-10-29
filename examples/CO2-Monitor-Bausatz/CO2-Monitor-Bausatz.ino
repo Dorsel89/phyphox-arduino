@@ -14,7 +14,7 @@ int lineNumber = 0;
 float topThreshold = 1000;
 float bottomThreshold = 800;
 //store data every 12s over 24h -> maxDatasets = 24*60*60/2 = 7200
-int maxDatasets=43200;
+int maxDatasets=7200;
 
 const int measuredDataLength = 4;
 float measuredData[measuredDataLength];  //co2,temperature,humidity,seconds since uptime, number of dataset
