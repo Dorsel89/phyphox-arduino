@@ -12,7 +12,7 @@ int datasetNumber = 0;
 int lineNumber = 0;
 
 float topThreshold = 1000;
-float bottomThreshold = 800;
+float bottomThreshold = 600;
 //store data every 12s over 24h -> maxDatasets = 24*60*60/2 = 7200
 int maxDatasets=7200;
 
