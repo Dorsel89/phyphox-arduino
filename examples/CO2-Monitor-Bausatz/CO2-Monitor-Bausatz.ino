@@ -9,7 +9,12 @@ SCD30 airSensor;
 File fsUploadFile;                                    // a File variable to temporarily store the received file
 
 int datasetNumber = 0;
-int dataPointNumber = 0;
+int lineNumber = 0;
+
+float topThreshold = 1000;
+float bottomThreshold = 800;
+//store data every 12s over 24h -> maxDatasets = 24*60*60/2 = 7200
+int maxDatasets=43200;
 
 const int measuredDataLength = 4;
 float measuredData[measuredDataLength];  //co2,temperature,humidity,seconds since uptime, number of dataset
@@ -19,11 +24,26 @@ void receivedConfig();
 int oldDataTransmissionOffset = -1;
 int oldDataTransmissionSet = -1;
 
+int pinGreen = 26;
+int pinRed = 33;
+int pinBlue = 25;
+bool RED = 1;
+bool GREEN = 0;
+bool BLUE = 1;
+
 void setup() {
   PhyphoxBLE::start("CO2 Monitor");                 //Start the BLE server
   PhyphoxBLE::configHandler=&receivedConfig;
   Serial.begin(115200);
 
+  // initialize rgb-led
+  pinMode(pinGreen, OUTPUT);
+  pinMode(pinRed, OUTPUT);
+  pinMode(pinBlue, OUTPUT);
+  digitalWrite(pinGreen, GREEN);
+  digitalWrite(pinRed, RED);
+  digitalWrite(pinBlue, BLUE);
+  
   Wire.begin();
   if (airSensor.begin() == false)
   {
@@ -49,12 +69,9 @@ void loop() {
     echoDataset("Measured", measuredData);
 
     PhyphoxBLE::write(measuredData[0],measuredData[1],measuredData[2],measuredData[3]);     //Send value to phyphox  
-  
-    byte byteArray[4*measuredDataLength];
-    memcpy(&byteArray[0],&measuredData[0],4*measuredDataLength);
-    File file = SPIFFS.open("/set"+String(datasetNumber)+".txt", "a");  
-    file.write(byteArray, 4*measuredDataLength);
-    file.close();
+
+    storeMeasuredData(measuredData);
+    updateLED(measuredData[0]);
     delay(10);
   }
 
@@ -191,4 +208,34 @@ bool transferOldData(int setNumber, int offset){
     return true;
 }
 
+void storeMeasuredData(float dataArray[4]){
+  byte byteArray[4*measuredDataLength];
+  memcpy(&byteArray[0],&dataArray[0],4*measuredDataLength);
+  File file = SPIFFS.open("/set"+String(datasetNumber)+".txt", "a");  
+  file.seek(lineNumber*4*measuredDataLength, SeekSet);    
+  file.write(byteArray, 4*measuredDataLength);
+  file.close();
+  
+  if(lineNumber<(maxDatasets-1)){
+      lineNumber+=1;
+    }else{
+      lineNumber=0;
+  }
+}
+
+void updateLED(float co2value){
+  if(co2value>topThreshold && GREEN == false){
+    GREEN=true;
+    RED=false;
+    digitalWrite(pinGreen, GREEN);
+    digitalWrite(pinRed, RED);
+  }
+  if(co2value<bottomThreshold && RED == false){
+    GREEN=false;
+    RED=true;
+    digitalWrite(pinGreen, GREEN);
+    digitalWrite(pinRed, RED);
+  }  
+    
+}
   

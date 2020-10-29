@@ -27,8 +27,8 @@ uint8_t* PhyphoxBLE::data;
 
 uint16_t PhyphoxBLE::minConInterval = 6;  //7.5ms
 uint16_t PhyphoxBLE::maxConInterval = 24; //30ms
-uint16_t PhyphoxBLE::slaveLatency = 0;
-uint16_t PhyphoxBLE::timeout = 10;
+uint16_t PhyphoxBLE::slaveLatency = 1;
+uint16_t PhyphoxBLE::timeout = 20;
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
