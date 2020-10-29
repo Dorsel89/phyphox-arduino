@@ -19,6 +19,10 @@ int maxDatasets=43200;
 const int measuredDataLength = 4;
 float measuredData[measuredDataLength];  //co2,temperature,humidity,seconds since uptime, number of dataset
 
+float averageMeasuredData[measuredDataLength];
+int averageOver = 6; //6*2s rate = store data every 12s
+int averageCounter=0;
+
 void receivedConfig();
 
 int oldDataTransmissionOffset = -1;
@@ -45,7 +49,7 @@ void setup() {
   digitalWrite(pinBlue, BLUE);
   
   Wire.begin();
-  if (airSensor.begin() == false)
+  if (airSensor.begin(Wire, false) == false)
   {
     Serial.println("Air sensor not detected. Please check wiring. Freezing...");
     while (1);
@@ -70,7 +74,22 @@ void loop() {
 
     PhyphoxBLE::write(measuredData[0],measuredData[1],measuredData[2],measuredData[3]);     //Send value to phyphox  
 
-    storeMeasuredData(measuredData);
+    if(averageCounter < averageOver){
+      averageMeasuredData[0]+=measuredData[0]/averageOver;
+      averageMeasuredData[1]+=measuredData[1]/averageOver;
+      averageMeasuredData[2]+=measuredData[2]/averageOver;
+      averageMeasuredData[3]+=measuredData[3]/averageOver;
+      averageCounter+=1;
+    }else{
+      storeMeasuredData(averageMeasuredData);
+      averageMeasuredData[0]=0;
+      averageMeasuredData[1]=0;
+      averageMeasuredData[2]=0;
+      averageMeasuredData[3]=0;
+      averageCounter=0;      
+    }
+    
+    
     updateLED(measuredData[0]);
     delay(10);
   }
@@ -119,27 +138,9 @@ void initStorage() { // Start the SPIFFS and list all contents
   Serial.print("total Bytes ");
   Serial.println(usedBytes); 
 
-  /*  check the latest file number*/
-  while(true){
-    
-    if(!(SPIFFS.exists("/set"+String(datasetNumber)+".txt"))){
-        //file does not exist - current set number = datasetNumber
-        Serial.println("file does not exist, exit loop");
-        File file = SPIFFS.open("/set"+String(datasetNumber)+".txt", FILE_WRITE);
-        file.close();
-      
-        break;
-      }else{
-        Serial.print("dataset: ");
-        Serial.print(datasetNumber);
-        Serial.println(" found ");
+  File file = SPIFFS.open("/set"+String(datasetNumber)+".txt", FILE_WRITE);
+  file.close();
 
-        printSetData(datasetNumber);
-        
-        datasetNumber+=1;      
-      }
-    
-    }
 }
 
 void printSetData(float _setNumber){
@@ -163,27 +164,23 @@ void receivedConfig(){
     /*
     byte    information
     0       bool transfer Data
-    1       setNumber 0-24
-    2       format flash
-    3       top threshold
-    4       bot threshold
+    1       bool calibrate
      */
 
     uint8_t readArray[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     PhyphoxBLE::read(&readArray[0],20);
     if(readArray[0]==1){
-        /*  user can choose 
-        if(readArray[1]>(dataSetNumber)){
-            //do nothing
-        }else{
-            transferOldData(dataSetNumber);
-        }
-        */
         // just send current data
         Serial.println("Resending of old data requested.");
         oldDataTransmissionOffset = 0;
         oldDataTransmissionSet = datasetNumber;
     }
+    if(readArray[1]==1){
+      //CALIBRATION
+      Serial.print("Calibration with fresh air ");
+      airSensor.setAutoSelfCalibration(false);
+      Serial.println(airSensor.setForcedRecalibrationFactor(400));
+      }
 }
 
 bool transferOldData(int setNumber, int offset){
