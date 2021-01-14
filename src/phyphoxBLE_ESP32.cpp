@@ -142,11 +142,15 @@ void PhyphoxBLE::start(const char * DEVICE_NAME)
   myAdvertising = BLEDevice::getAdvertising();
   myAdvertising->addServiceUUID(phyphoxExperimentService->getUUID());
   BLEDevice::startAdvertising();
-
+  
 }
 
 void PhyphoxBLE::start() {
     PhyphoxBLE::start("phyphox-Arduino");
+}
+
+void PhyphoxBLE::start(uint16_t mtuSize) {
+    BLEDevice::setMTU(mtuSize);
 }
 
 void PhyphoxBLE::poll() {

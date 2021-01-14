@@ -66,6 +66,7 @@ class PhyphoxBLE
         static void read(float&);
         static void configHandlerDebug();
         static void (*configHandler)();
+		static void setMTU(uint16_t);
 
         static void startTask();
         static void staticStartTask(void*);
