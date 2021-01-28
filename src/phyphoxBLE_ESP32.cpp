@@ -149,7 +149,7 @@ void PhyphoxBLE::start() {
     PhyphoxBLE::start("phyphox-Arduino");
 }
 
-void PhyphoxBLE::start(uint16_t mtuSize) {
+void PhyphoxBLE::setMTU(uint16_t mtuSize) {
     BLEDevice::setMTU(mtuSize);
 }
 
